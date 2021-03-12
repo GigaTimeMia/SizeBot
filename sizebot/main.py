@@ -9,6 +9,7 @@ import discord
 from discord.ext.commands import Bot
 
 from digiformatter import styles, logger as digilogger
+import mongoengine
 
 import discordplus
 
@@ -93,6 +94,9 @@ def main():
     except FileNotFoundError as e:
         logger.error(f"Configuration file not found: {e.filename}")
         return
+
+    mongoengine.connect("sizebot")
+    # mongoengine.connect("sizebot", host="nizebot.bew.by")
 
     launchtime = datetime.now()
 

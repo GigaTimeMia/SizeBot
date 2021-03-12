@@ -1,101 +1,61 @@
-import json
 import logging
 import time
 
-from sizebot.lib import paths
-from sizebot.lib.decimal import Decimal
+from mongoengine import Document
+from mongoengine.fields import DecimalField, IntField
+
+from sizebot.lib.digidecimal import Decimal
+
 
 logger = logging.getLogger("sizebot")
 
 
-_activeNannies = {}
+class Nanny(Document):
+    userid = IntField(required=True)
+    guildid = IntField(required=True, unique_with="userid")
+    endtime = DecimalField(required=True)
 
-
-class Nanny:
-    def __init__(self, userid, guildid, endtime):
-        self.userid = userid
-        self.guildid = guildid
-        self.endtime = Decimal(endtime)
-
-    async def check(self, bot):
-        if time.time() < self.endtime:
-            return True
+    async def tuckin(self, bot):
         guild = await bot.fetch_guild(self.guildid)
         # If the bot doesn't have permission to kick users from a voice channel, give up on this nap
-        if not guild.me.guild_permissions.move_members:
-            return False
+        # if not guild.me.guild_permissions.move_members:
+        bot_member = await guild.fetch_member(bot.user.id)
+        if not bot_member.guild_permissions.move_members:
+            logger.info("I do not have permission to move users in this guild.")
+            self.delete()
+            return
         member = await guild.fetch_member(self.userid)
         # PERMISSION: requires move_members
+        logger.info(f"Dragging {member} to bed.")
         await member.move_to(None, reason="Naptime!")
-        return False
+        self.delete()
 
-    def toJson(self):
-        return {
-            "userid": self.userid,
-            "guildid": self.guildid,
-            "endtime": str(self.endtime),
-        }
+    def __str__(self):
+        userid, guildid, endtime = self.userid, self.guildid, self.endtime
+        return f"Nap({userid=}, {guildid=}, {endtime=})"
 
 
-def start(userid, guildid, durationTV):
+def get_nannies():
+    return Nanny.objects
+
+
+def schedule(userid, guildid, durationTV):
     """Start a new naptime nanny"""
     endtime = Decimal(time.time()) + durationTV
-    nanny = Nanny(userid, guildid, endtime)
-    _activate(nanny)
+    nanny = Nanny(userid=userid, guildid=guildid, endtime=endtime)
+    nanny.save()
 
 
-def stop(userid):
+def cancel(userid, guildid):
     """Stop a waiting naptime nanny"""
-    nanny = _deactivate(userid)
+    nanny = Nanny.objects(userid=userid, guildid=guildid).first()
+    if nanny is not None:
+        nanny.delete()
     return nanny
 
 
 async def check(bot):
     """Have the nannies check their watches"""
-    global _activeNannies
-    runningNannies = {}
-    for userid, nanny in _activeNannies.items():
-        try:
-            running = await nanny.check(bot)
-            if running:
-                runningNannies[userid] = nanny
-        except Exception as e:
-            logger.error(e)
-    _activeNannies = runningNannies
-    saveToFile()
-
-
-def _activate(nanny):
-    """Activate a new naptime nanny"""
-    _activeNannies[nanny.userid] = nanny
-    saveToFile()
-
-
-def _deactivate(userid):
-    """Deactivate a waiting naptime nanny"""
-    nanny = _activeNannies.pop(userid, None)
-    saveToFile()
-    return nanny
-
-
-def loadFromFile():
-    """Load all naptime nannies from file"""
-    try:
-        with open(paths.naptimepath, "r") as f:
-            nanniesJson = json.load(f)
-    except FileNotFoundError:
-        nanniesJson = []
-    for nannyJson in nanniesJson:
-        nanny = Nanny(**nannyJson)
-        _activate(nanny)
-
-
-def saveToFile():
-    """Save all naptime nannies to a file"""
-    nanniesJson = [n.toJson() for n in _activeNannies.values()]
-    with open(paths.naptimepath, "w") as f:
-        json.dump(nanniesJson, f)
-
-
-def formatSummary():
-    return "\n".join(str(n) for n in _activeNannies.values())
+    nannies = Nanny.objects(endtime__gte=time.time())
+    for nanny in nannies:
+        await nanny.tuckin(bot)
