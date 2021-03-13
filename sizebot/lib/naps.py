@@ -1,11 +1,10 @@
 import logging
-import time
 
+import arrow
 from mongoengine import Document
-from mongoengine.fields import DecimalField, IntField
+from mongoengine.fields import IntField
 
-from sizebot.lib.digidecimal import Decimal
-
+from sizebot.lib.db import ArrowField
 
 logger = logging.getLogger("sizebot")
 
@@ -13,7 +12,7 @@ logger = logging.getLogger("sizebot")
 class Nanny(Document):
     userid = IntField(required=True)
     guildid = IntField(required=True, unique_with="userid")
-    endtime = DecimalField(required=True)
+    endtime = ArrowField(required=True)
 
     async def tuckin(self, bot):
         guild = await bot.fetch_guild(self.guildid)
@@ -41,7 +40,7 @@ def get_nannies():
 
 def schedule(userid, guildid, durationTV):
     """Start a new naptime nanny"""
-    endtime = Decimal(time.time()) + durationTV
+    endtime = arrow.now().shift(seconds=float(durationTV))
     nanny = Nanny(userid=userid, guildid=guildid, endtime=endtime)
     nanny.save()
 
@@ -56,6 +55,6 @@ def cancel(userid, guildid):
 
 async def check(bot):
     """Have the nannies check their watches"""
-    nannies = Nanny.objects(endtime__gte=time.time())
+    nannies = Nanny.objects(endtime__gte=arrow.now())
     for nanny in nannies:
         await nanny.tuckin(bot)
