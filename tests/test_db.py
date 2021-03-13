@@ -37,11 +37,11 @@ def test_arrow_int(db):
 
 
 def test_arrow_datetime(db):
-    t = ArrowTest(mydate=datetime.fromtimestamp(0))
+    t = ArrowTest(mydate=datetime.utcfromtimestamp(0))
     t.save()
     t_saved = ArrowTest.objects(id=t.id).first()
     assert isinstance(t_saved.mydate, arrow.Arrow)
-    assert t_saved.mydate == arrow.get("1969-12-31T19:00:00+00:00")
+    assert t_saved.mydate == arrow.get("1970-01-01T00:00:00+00:00")
 
 
 def test_arrow_arrow(db):
