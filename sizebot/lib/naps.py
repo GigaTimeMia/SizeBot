@@ -2,16 +2,15 @@ import logging
 
 import arrow
 from mongoengine import Document
-from mongoengine.fields import IntField
 
-from sizebot.lib.db import ArrowField
+from sizebot.lib.db import ArrowField, SnowflakeField
 
 logger = logging.getLogger("sizebot")
 
 
 class Nanny(Document):
-    userid = IntField(required=True)
-    guildid = IntField(required=True, unique_with="userid")
+    userid = SnowflakeField(required=True)
+    guildid = SnowflakeField(required=True, unique_with="userid")
     endtime = ArrowField(required=True)
 
     async def tuckin(self, bot):
