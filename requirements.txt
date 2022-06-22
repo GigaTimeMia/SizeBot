@@ -3,7 +3,7 @@ discord.py==1.5.1
 #discord.py @ git+git://github.com/Rapptz/discord.py.git@master
 appdirs==1.4.3
 toml==0.10.0
-numpy==1.19.3
+numpy==1.22.0
 numexpr==2.7.1
 PyNaCl==1.4.0
 digiformatter==0.5.7.2
