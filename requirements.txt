@@ -12,7 +12,7 @@ requests==2.22.0
 inflect==4.1.0
 arrow==0.15.6
 validator-collection==1.4.1
-flask==1.1.2
+flask==2.3.2
 pytz==2020.4
 pillow==8.0.1
 petname==2.6
